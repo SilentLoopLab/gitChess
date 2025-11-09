@@ -1,0 +1,231 @@
+:root{
+  --page-padding: 24px;
+  --bottom-panel-height: 140px;
+  --top-panel-height: 100px;
+  --panel-bg: #2a0c0c;
+  --panel-border: #4c1a1a;
+  --board-size: clamp(440px, 68vmin, 700px);
+  --sidebar-width: clamp(240px, 20vw, 340px);
+  --board-sidebar-gap: 32px;
+}
+
+*{
+  padding: 0;
+  margin: 0;
+}
+
+body{
+  background-color: #1e0101;
+  color: #f5e2d5;
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  overflow: hidden;
+}
+/*-------------------------- board --------------------------*/
+.app-shell{
+  position: fixed;
+  top: calc(var(--top-panel-height) + var(--page-padding));
+  bottom: calc(var(--bottom-panel-height) + var(--page-padding));
+  left: var(--page-padding);
+  right: calc(var(--page-padding) + var(--sidebar-width) + var(--board-sidebar-gap));
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  box-sizing: border-box;
+  right: 35%;
+}
+
+#board {
+  width: var(--board-size);
+  height: var(--board-size);
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  border: 2px solid #000;
+}
+
+.square {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.white {
+  background: #FAD093;
+}
+
+.black {
+  background: #6f1515;
+}
+
+.letters-black {
+  color: #FAD093;
+}
+
+.letters-white {
+  color: #6f1515;
+}
+
+.numbers {
+  position: absolute;
+  font-size: 15px;
+  top: 5%;
+  left: 5%;
+  font-weight: bold;
+}
+.letters {
+  position: absolute;
+  font-size: 15px;
+  top: 70%;
+  left: 82%;
+  font-weight: bold;
+}
+
+/*-------------------------- sidebar ------------------------------------------*/
+.sidebar{
+  position: fixed;
+  top: calc(var(--top-panel-height) + var(--page-padding));
+  right: var(--page-padding);
+  bottom: calc(var(--bottom-panel-height) + var(--page-padding));
+  width: var(--sidebar-width);
+  padding: 20px;
+  background: var(--panel-bg);
+  border: 2px solid var(--panel-border);
+  border-radius: 18px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+  overflow-y: auto;
+}
+
+.sidebar h1{
+  font-size: 1.4rem;
+  margin-bottom: 8px;
+}
+
+.sidebar p{
+  color: #f0d9b5;
+  line-height: 1.5;
+}
+
+.top-panel{
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--top-panel-height);
+  background: var(--panel-bg);
+  border-bottom: 2px solid var(--panel-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+  text-align: center;
+  font-size: 1.15rem;
+}
+
+.bottom-panel{
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--bottom-panel-height);
+  background: var(--panel-bg);
+  border-top: 2px solid var(--panel-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 24px;
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+}
+
+@media (max-width: 900px){
+  body{
+    overflow: auto;
+    padding-top: calc(var(--top-panel-height) + var(--page-padding));
+    padding-bottom: calc(var(--bottom-panel-height) + var(--page-padding));
+  }
+
+  .app-shell{
+    position: static;
+    width: 100%;
+    padding: var(--page-padding);
+    display: flex;
+    justify-content: space-around;
+  }
+
+  .board-area{
+    width: min(90vmin, 520px);
+  }
+
+  .sidebar{
+    position: static;
+    width: 100%;
+    max-height: none;
+    margin-top: var(--page-padding);
+  }
+}
+
+/*--------------------------Buttons--------------------------*/
+.buttons {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+button {
+  --color: #FAD093;
+  font-family: inherit;
+  display: inline-block;
+  width: 6em;
+  height: 2.6em;
+  line-height: 2.5em;
+  overflow: hidden;
+  cursor: pointer;
+  margin: 20px;
+  font-size: 20px;
+  z-index: 1;
+  color: #FAD093;
+  border: 2px solid #FAD093;
+  border-radius: 6px;
+  position: relative;
+  width: 150px;
+  height: 70px;
+  font-weight: bold;
+}
+
+button::before {
+  position: absolute;
+  content: "";
+  background: #FAD093;
+  width: 210px;
+  height: 200px;
+  z-index: -1;
+  border-radius: 50%;
+}
+
+button:hover {
+  color: #6f1515;
+}
+
+button:before {
+  top: 100%;
+  left: 100%;
+  transition: 0.3s all;
+}
+
+button:hover::before {
+  top: -50px;
+  left: -50px;
+}
+
+/*------------- pieces ---------------*/
+
+.piece {
+  position: absolute;
+  display: flex;
+  height: 75%;
+  width: 75%;
+  left: 12%;
+  top: 15%;
+}
