@@ -1,9 +1,11 @@
 class Board {
+  // Grabs the board container and starts building all squares
   constructor() {
     this.board = document.getElementById('board');
     this.createBoard();
   }
 
+  // Creates the 8x8 grid with alternating colors and coordinates
   createBoard() {
     const board = this.board;
     for (let row = 8; row > 0; --row) {
@@ -25,6 +27,7 @@ class Board {
     }
   }
 
+  // Adds rank and file labels to the edge squares
   createBoardSpans(square, row, col, color) {
     if (col === 8) {
       const span = document.createElement('span');
@@ -43,40 +46,4 @@ class Board {
   }
 }
 
-class Pieces {
-  constructor(boardElement) {
-    this.boardElement = boardElement;
-    this.pieceFolder = './images';
-  }
-
-  createPieces() {
-    if (!this.boardElement) {
-      return;
-    }
-    const backRank = ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'];
-    for (let col = 1; col <= 8; col++) {
-      this.addPiece(1, col, `w${backRank[col - 1]}`);
-      this.addPiece(2, col, 'wp');
-      this.addPiece(7, col, 'bp');
-      this.addPiece(8, col, `b${backRank[col - 1]}`);
-    }
-  }
-
-  addPiece(row, col, pieceCode) {
-    const square = this.boardElement.querySelector(
-      `.square[data-row="${row}"][data-col="${col}"]`
-    );
-    if (!square) {
-      return;
-    }
-    const img = document.createElement('img');
-    img.src = `${this.pieceFolder}/${pieceCode}.svg`;
-    img.alt = pieceCode;
-    img.classList.add('piece');
-    square.appendChild(img);
-  }
-}
-
-let board = new Board();
-const pieces = new Pieces(board.board);
-pieces.createPieces();
+export { Board };

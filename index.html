@@ -8,11 +8,13 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="top-panel"></header>
+    <header class="top-panel">
+      <div class="headerCheckmate">Checkmate</div>
+    </header>
 
     <div class="app-shell">
       <div class="buttons">
-        <button>Restart</button>
+        <button class="restart">Restart</button>
         <button>Undo</button>
         <button>Redo</button>
       </div>
@@ -27,6 +29,6 @@
 
     <section class="bottom-panel"></section>
 
-    <script src="board.js" defer></script>
+    <script type="module" src="src.js"></script>
   </body>
 </html>
