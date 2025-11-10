@@ -149,10 +149,11 @@ class ChessEngine {
     if (!piece) {
       return;
     }
+    const snapshot = this.createSnapshot();
     const captureInfo = this.captureDetails(piece, to, move);
     this.applyStateMove(piece, from, to, move, captureInfo);
     this.applyDomMove(piece, from, to, move);
-    this.postMove(piece, from, to, move);
+    this.postMove(piece, from, to, move, snapshot, captureInfo);
   }
 
   // Determines if the move captures a piece and returns its info
@@ -182,8 +183,9 @@ class ChessEngine {
       this.boardState[captureRow - 1][to.col - 1] = null;
     }
     if (move.type === 'castle') {
-      const rookFromCol = move.side === 'king' ? 8 : 1;
-      const rookToCol = move.side === 'king' ? 6 : 4;
+      const step = move.side === 'king' ? -1 : 1;
+      const rookFromCol = move.side === 'king' ? 1 : 8;
+      const rookToCol = from.col + step;
       const rook = this.getPiece(from.row, rookFromCol);
       this.boardState[from.row - 1][rookFromCol - 1] = null;
       if (rook) {
@@ -255,8 +257,9 @@ class ChessEngine {
       toSquare.appendChild(movingPiece);
     }
     if (move.type === 'castle') {
-      const rookFromCol = move.side === 'king' ? 8 : 1;
-      const rookToCol = move.side === 'king' ? 6 : 4;
+      const step = move.side === 'king' ? -1 : 1;
+      const rookFromCol = move.side === 'king' ? 1 : 8;
+      const rookToCol = from.col + step;
       const rookFromSquare = this.getSquare(from.row, rookFromCol);
       const rookToSquare = this.getSquare(from.row, rookToCol);
       const rookPiece = rookFromSquare?.querySelector('.piece');
@@ -268,12 +271,15 @@ class ChessEngine {
   }
 
   // Records the move, swaps turn, and refreshes status indicators
-  postMove(piece, from, to, move) {
+  postMove(piece, from, to, move, snapshot, captureInfo) {
     this.history.push({
       from,
       to,
       piece: { ...piece },
-      type: move.type
+      type: move.type,
+      move,
+      captured: captureInfo?.captured ? { ...captureInfo.captured } : null,
+      snapshot
     });
     this.clearSelection();
     this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white';
@@ -425,6 +431,87 @@ class ChessEngine {
     img.alt = `${color === 'white' ? 'w' : 'b'}${CODE_BY_TYPE[type]}`;
     img.src = `${this.imageFolder}/${img.alt}.svg`;
     return img;
+  }
+
+  createSnapshot() {
+    return {
+      boardState: this.cloneBoardState(this.boardState),
+      currentTurn: this.currentTurn,
+      enPassantTarget: this.enPassantTarget
+        ? { ...this.enPassantTarget }
+        : null,
+      castleRights: {
+        white: { ...this.castleRights.white },
+        black: { ...this.castleRights.black }
+      }
+    };
+  }
+
+  cloneBoardState(board) {
+    return board.map(row => row.map(cell => (cell ? { ...cell } : null)));
+  }
+
+  restoreSnapshot(snapshot) {
+    if (!snapshot) {
+      return;
+    }
+    this.boardState = this.cloneBoardState(snapshot.boardState);
+    this.currentTurn = snapshot.currentTurn;
+    this.enPassantTarget = snapshot.enPassantTarget
+      ? { ...snapshot.enPassantTarget }
+      : null;
+    this.castleRights = {
+      white: { ...snapshot.castleRights.white },
+      black: { ...snapshot.castleRights.black }
+    };
+  }
+
+  rebuildBoardDom() {
+    if (!this.boardElement) {
+      return;
+    }
+    this.boardElement.querySelectorAll('.piece').forEach(img => img.remove());
+    for (let row = 1; row <= 8; row += 1) {
+      for (let col = 1; col <= 8; col += 1) {
+        const piece = this.getPiece(row, col);
+        if (!piece) {
+          continue;
+        }
+        const square = this.getSquare(row, col);
+        if (!square) {
+          continue;
+        }
+        square.appendChild(this.createPieceElement(piece.color, piece.type));
+      }
+    }
+  }
+
+  undoLastMove() {
+    if (!this.history.length) {
+      return null;
+    }
+    const last = this.history.pop();
+    this.restoreSnapshot(last.snapshot);
+    this.rebuildBoardDom();
+    this.clearSelection();
+    this.highlight.highlightMoves([]);
+    this.highlight.highlightCheck(null);
+    this.updateGameStatus();
+    return last;
+  }
+
+  applyMove(historyEntry) {
+    if (!historyEntry) {
+      return;
+    }
+    const from = historyEntry.from;
+    const to = historyEntry.to;
+    const move = historyEntry.move || {
+      row: to.row,
+      col: to.col,
+      type: historyEntry.type || 'move'
+    };
+    this.movePiece(from, to, move);
   }
 }
 

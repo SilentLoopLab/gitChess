@@ -3,9 +3,9 @@ import { Pieces } from './pieces.js';
 import { Buttons } from './buttons.js';
 import { ChessEngine } from './engine/Engine.js';
 
-let ChessBoard = new Board();
-const pieces = new Pieces(ChessBoard.board);
+const chessBoard = new Board();
+const pieces = new Pieces(chessBoard.board);
 pieces.createPieces();
-const buttons = new Buttons();
+const engine = new ChessEngine(document.getElementById('board'));
+const buttons = new Buttons(engine);
 buttons.init();
-new ChessEngine(document.getElementById('board'));

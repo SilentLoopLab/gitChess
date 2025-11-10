@@ -208,38 +208,36 @@ class Moves {
     if (!rights) {
       return moves;
     }
-    if (rights.king && this.canCastle(boardState, piece.color, 'king')) {
-      moves.push({ row, col: col + 2, type: 'castle', side: 'king' });
+    if (rights.king && this.canCastle(boardState, row, col, piece.color, 'king')) {
+      moves.push({ row, col: col - 2, type: 'castle', side: 'king' });
     }
-    if (rights.queen && this.canCastle(boardState, piece.color, 'queen')) {
-      moves.push({ row, col: col - 2, type: 'castle', side: 'queen' });
+    if (rights.queen && this.canCastle(boardState, row, col, piece.color, 'queen')) {
+      moves.push({ row, col: col + 2, type: 'castle', side: 'queen' });
     }
     return moves;
   }
 
   // Checks path clearance, safety, and rook presence for castling
-  canCastle(boardState, color, side) {
-    const row = color === 'white' ? 1 : 8;
-    const rookCol = side === 'king' ? 8 : 1;
-    if (this.isKingInCheck(boardState, color)) {
+  canCastle(boardState, row, col, color, side) {
+    const targetRow = color === 'white' ? 1 : 8;
+    const rookCol = side === 'king' ? 1 : 8;
+    const step = side === 'king' ? -1 : 1;
+    if (row !== targetRow || this.isKingInCheck(boardState, color)) {
       return false;
     }
-    const between =
-      side === 'king' ? [6, 7] : [4, 3, 2];
-    for (const col of between) {
-      if (this.getPiece(boardState, row, col)) {
+    for (let current = col + step; current !== rookCol; current += step) {
+      if (this.getPiece(boardState, targetRow, current)) {
         return false;
       }
     }
-    const safety =
-      side === 'king' ? [5, 6, 7] : [5, 4, 3];
+    const kingSquares = [col + step, col + step * 2];
     const opponent = color === 'white' ? 'black' : 'white';
-    for (const col of safety) {
-      if (this.isSquareAttacked(boardState, row, col, opponent)) {
+    for (const square of kingSquares) {
+      if (this.isSquareAttacked(boardState, targetRow, square, opponent)) {
         return false;
       }
     }
-    const rook = this.getPiece(boardState, row, rookCol);
+    const rook = this.getPiece(boardState, targetRow, rookCol);
     return rook && rook.type === 'rook' && rook.color === color && !rook.hasMoved;
   }
 
@@ -260,8 +258,9 @@ class Moves {
     const piece = { ...this.getPiece(clone, fromRow, fromCol) };
     clone[fromRow - 1][fromCol - 1] = null;
     if (move.type === 'castle') {
-      const rookFromCol = move.side === 'king' ? 8 : 1;
-      const rookToCol = move.side === 'king' ? 6 : 4;
+      const step = move.side === 'king' ? -1 : 1;
+      const rookFromCol = move.side === 'king' ? 1 : 8;
+      const rookToCol = fromCol + step;
       const rook = { ...this.getPiece(clone, fromRow, rookFromCol) };
       clone[fromRow - 1][rookFromCol - 1] = null;
       clone[fromRow - 1][rookToCol - 1] = { ...rook, hasMoved: true };
