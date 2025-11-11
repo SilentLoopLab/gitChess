@@ -7,7 +7,14 @@ class Buttons {
     this.restartButton = null;
     this.undoButton = null;
     this.redoButton = null;
+    this.blackReadyButton = null;
+    this.whiteReadyButton = null;
+    this.blackTimerDisplay = null;
+    this.whiteTimerDisplay = null;
+    this.timerMessage = null;
     this.sidebar = null;
+    this.topPanel = null;
+    this.bottomPanel = null;
     this.historyContainer = null;
     this.historyList = null;
     this.confirmOverlay = null;
@@ -15,6 +22,18 @@ class Buttons {
     this.futureMoves = [];
     this.isApplyingRedo = false;
     this.statusListener = this.handleStatus.bind(this);
+    this.readyState = {
+      black: false,
+      white: false
+    };
+    this.remainingTime = {
+      black: 300000,
+      white: 300000
+    };
+    this.activeTimerColor = null;
+    this.timerInterval = null;
+    this.matchRunning = false;
+    this.matchFinished = false;
   }
 
   // Ensures the component sets up only after the DOM is fully ready
@@ -30,8 +49,10 @@ class Buttons {
   // Injects DOM hooks, panel scaffolding, and event subscriptions
   setup() {
     this.cacheDom();
+    this.setupReadyControls();
     this.setupHistoryPanel();
     this.bindButtons();
+    this.bindReadyButtons();
     this.attachEngineEvents();
     this.renderHistory();
   }
@@ -50,6 +71,8 @@ class Buttons {
     this.undoButton = buttonNodes[1] || null;
     this.redoButton = buttonNodes[2] || null;
     this.sidebar = document.querySelector('.sidebar');
+    this.topPanel = document.querySelector('.top-panel');
+    this.bottomPanel = document.querySelector('.bottom-panel');
   }
 
   // Creates the move-history UI inside the sidebar
@@ -61,6 +84,7 @@ class Buttons {
     container.classList.add('move-history');
     container.style.overflowY = 'auto';
     const title = document.createElement('h2');
+    title.classList.add("MovesHistory")
     title.textContent = 'Move History';
     const list = document.createElement('ol');
     list.classList.add('move-history__list');
@@ -80,6 +104,15 @@ class Buttons {
     this.redoButton?.addEventListener('click', () => this.handleRedo());
   }
 
+  bindReadyButtons() {
+    this.blackReadyButton?.addEventListener('click', () =>
+      this.handleReady('black')
+    );
+    this.whiteReadyButton?.addEventListener('click', () =>
+      this.handleReady('white')
+    );
+  }
+
   // Subscribes to engine status events so move history stays in sync
   attachEngineEvents() {
     if (!this.engine || !this.engine.boardElement) {
@@ -97,8 +130,9 @@ class Buttons {
   }
 
   // Processes the status event to capture newly made moves
-  handleStatus() {
+  handleStatus(event) {
     this.syncHistoryFromEngine();
+    this.handleTimerUpdate(event?.detail);
   }
 
   // Copies unseen history entries from the engine into the sidebar list
@@ -168,15 +202,11 @@ class Buttons {
     const lastMove = this.engine.history[this.engine.history.length - 1];
     this.futureMoves.push(lastMove);
     this.engine.undoLastMove();
-    if (this.movesHistory.length) {
-      this.movesHistory.pop();
-    }
-    this.renderHistory();
     this.deferSync();
   }
 
   // Handles redo logic using the stored futureMoves stack
-  handleRedo() {
+  async handleRedo() {
     if (
       !this.engine ||
       typeof this.engine.applyMove !== 'function' ||
@@ -186,10 +216,13 @@ class Buttons {
     }
     const move = this.futureMoves.pop();
     this.isApplyingRedo = true;
-    this.engine.applyMove(move);
-    this.deferSync(() => {
-      this.isApplyingRedo = false;
-    });
+    try {
+      await this.engine.applyMove(move);
+    } finally {
+      this.deferSync(() => {
+        this.isApplyingRedo = false;
+      });
+    }
   }
 
   // Schedules a sync after undo/redo so stacks realign with engine state
@@ -225,6 +258,7 @@ class Buttons {
       const whiteMove = this.movesHistory[i];
       const blackMove = this.movesHistory[i + 1];
       const item = document.createElement('li');
+      item.classList.add("moveList");
       const turn = i / 2 + 1;
       if (whiteMove && blackMove) {
         item.textContent = `${turn}. ${whiteMove.toSquare} ${blackMove.toSquare}`;
@@ -286,6 +320,142 @@ class Buttons {
     }
     this.confirmOverlay.remove();
     this.confirmOverlay = null;
+  }
+
+  setupReadyControls() {
+    if (this.blackReadyButton || this.whiteReadyButton) {
+      return;
+    }
+    if (this.topPanel) {
+      const wrapper = document.createElement('div');
+      wrapper.classList.add('ready-control', 'ready-control--black');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.classList.add('ready-button', 'ready-button--black');
+      btn.textContent = 'Black Ready';
+      const timer = document.createElement('span');
+      timer.classList.add('ready-timer', 'ready-timer--black');
+      timer.textContent = '05:00';
+      wrapper.appendChild(btn);
+      wrapper.appendChild(timer);
+      this.topPanel.appendChild(wrapper);
+      this.blackReadyButton = btn;
+      this.blackTimerDisplay = timer;
+    }
+    if (this.bottomPanel) {
+      const wrapper = document.createElement('div');
+      wrapper.classList.add('ready-control', 'ready-control--white');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.classList.add('ready-button', 'ready-button--white');
+      btn.textContent = 'White Ready';
+      const timer = document.createElement('span');
+      timer.classList.add('ready-timer', 'ready-timer--white');
+      timer.textContent = '05:00';
+      wrapper.appendChild(btn);
+      wrapper.appendChild(timer);
+      this.bottomPanel.appendChild(wrapper);
+      this.whiteReadyButton = btn;
+      this.whiteTimerDisplay = timer;
+    }
+  }
+
+  handleReady(color) {
+    if (this.readyState[color]) {
+      return;
+    }
+    this.readyState[color] = true;
+    const button =
+      color === 'black' ? this.blackReadyButton : this.whiteReadyButton;
+    if (button) {
+      button.disabled = true;
+      button.classList.add('ready-button--locked');
+    }
+    if (this.readyState.black && this.readyState.white && !this.matchRunning) {
+      this.startMatch();
+    }
+  }
+
+  startMatch() {
+    this.remainingTime.black = 300000;
+    this.remainingTime.white = 300000;
+    this.matchRunning = true;
+    this.matchFinished = false;
+    this.updateTimerDisplay('black');
+    this.updateTimerDisplay('white');
+    this.setTimerMessage('Game started. White to move.');
+    this.startTimer('white');
+  }
+
+  handleTimerUpdate(status) {
+    if (!this.matchRunning || this.matchFinished || !status) {
+      return;
+    }
+    const nextColor = status.turn === 'black' ? 'black' : 'white';
+    if (nextColor !== this.activeTimerColor) {
+      this.startTimer(nextColor);
+      const capitalized = nextColor === 'white' ? 'White' : 'Black';
+      this.setTimerMessage(`${capitalized} are thinking.`);
+    }
+  }
+
+  startTimer(color) {
+    this.stopTimer();
+    this.activeTimerColor = color;
+    let lastMark = performance.now();
+    this.timerInterval = setInterval(() => {
+      const now = performance.now();
+      const delta = now - lastMark;
+      lastMark = now;
+      this.remainingTime[color] = Math.max(
+        0,
+        this.remainingTime[color] - delta
+      );
+      this.updateTimerDisplay(color);
+      if (this.remainingTime[color] <= 0) {
+        this.handleTimeLoss(color);
+      }
+    }, 200);
+  }
+
+  stopTimer() {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+  }
+
+  updateTimerDisplay(color) {
+    const target =
+      color === 'black' ? this.blackTimerDisplay : this.whiteTimerDisplay;
+    if (!target) {
+      return;
+    }
+    target.textContent = this.formatTime(this.remainingTime[color]);
+  }
+
+  formatTime(ms) {
+    const totalSeconds = Math.ceil(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60)
+      .toString()
+      .padStart(2, '0');
+    const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+    return `${minutes}:${seconds}`;
+  }
+
+  handleTimeLoss(color) {
+    this.stopTimer();
+    this.matchRunning = false;
+    this.matchFinished = true;
+    const loser = color === 'white' ? 'White' : 'Black';
+    const winner = color === 'white' ? 'Black' : 'White';
+    this.setTimerMessage(`${loser} lost on time. ${winner} win.`);
+  }
+
+  setTimerMessage(text) {
+    if (this.timerMessage) {
+      this.timerMessage.textContent = text;
+    }
   }
 }
 

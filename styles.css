@@ -242,8 +242,8 @@ button::before {
   position: absolute;
   content: "";
   background: #FAD093;
-  width: 210px;
-  height: 200px;
+  width: 230px;
+  height: 250px;
   z-index: -1;
   border-radius: 50%;
 }
@@ -317,4 +317,106 @@ button:hover::before {
 
 .square.king-in-check {
   box-shadow: inset 0 0 0 4px rgba(255, 69, 58, 0.8);
+}
+
+/*----------- Promotion Popup -----------*/
+.promotion-popup {
+  position: fixed;
+  inset: 0;
+  background: rgba(1, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease-in;
+}
+
+.promotion-popup--visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.promotion-popup__dialog {
+  background: #2b0f0f;
+  border: 2px solid #fad093;
+  border-radius: 16px;
+  padding: 20px;
+  width: min(420px, 90vw);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+  animation: promotionFade 220ms ease-out;
+}
+
+.promotion-popup__title {
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 16px;
+  color: #fad093;
+}
+
+.promotion-popup__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  height: 50%;
+}
+
+.promotion-popup__option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  border: 2px solid rgba(250, 208, 147, 0.35);
+  background: rgba(250, 208, 147, 0.05);
+  padding: 12px 8px;
+  cursor: pointer;
+  transition: transform 150ms ease, border-color 150ms ease;
+  background: 150ms ease;
+  height: 78%;
+}
+
+.promotion-popup__option:hover,
+.promotion-popup__option:focus-visible {
+  transform: translateY(-2px);
+  border-color: #fad093;
+  background: rgba(250, 208, 147, 0.2);
+}
+
+.promotion-popup__image {
+  width: 64px;
+  height: 64px;
+  pointer-events: none;
+}
+
+.promotion-popup__label {
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+}
+
+@keyframes promotionFade {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.MovesHistory{
+  color: #FAD093;
+}
+
+.move-history__empty {
+  color: #FAD093;
+}
+
+.moveList {
+  color: #FAD093;
 }

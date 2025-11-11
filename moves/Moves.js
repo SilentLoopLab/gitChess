@@ -274,7 +274,7 @@ class Moves {
     }
     const targetType =
       move.type === 'promotion' || move.type === 'promotionCapture'
-        ? 'queen'
+        ? move.promoteTo || 'queen'
         : piece.type;
     clone[move.row - 1][move.col - 1] = {
       ...piece,

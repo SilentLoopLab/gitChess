@@ -1,5 +1,6 @@
 import { Moves } from '../moves/Moves.js';
 import { Highlight } from '../highlight/Highlight.js';
+import { showPromotionChoices } from '../promotion.js';
 
 const TYPE_BY_CODE = {
   p: 'pawn',
@@ -89,7 +90,7 @@ class ChessEngine {
   }
 
   // Handles selection logic or executes moves based on clicks
-  handleSquareInteraction(row, col) {
+  async handleSquareInteraction(row, col) {
     if (this.selectedSquare) {
       if (this.selectedSquare.row === row && this.selectedSquare.col === col) {
         this.clearSelection();
@@ -97,7 +98,7 @@ class ChessEngine {
       }
       const move = this.findMove(row, col);
       if (move) {
-        this.movePiece(this.selectedSquare, { row, col }, move);
+        await this.movePiece(this.selectedSquare, { row, col }, move);
         return;
       }
     }
@@ -144,10 +145,18 @@ class ChessEngine {
   }
 
   // Performs a validated move across state, DOM, and history
-  movePiece(from, to, move) {
+  async movePiece(from, to, move) {
     const piece = this.getPiece(from.row, from.col);
     if (!piece) {
       return;
+    }
+    if (piece.type === 'pawn' && this.isPromotionMove(move)) {
+      const choice = await showPromotionChoices(piece.color, {
+        row: to.row,
+        col: to.col,
+        imageFolder: this.imageFolder
+      });
+      move.promoteTo = choice || 'queen';
     }
     const snapshot = this.createSnapshot();
     const captureInfo = this.captureDetails(piece, to, move);
@@ -197,7 +206,7 @@ class ChessEngine {
     }
     const targetPiece =
       move.type === 'promotion' || move.type === 'promotionCapture'
-        ? { ...piece, type: 'queen', hasMoved: true }
+        ? { ...piece, type: move.promoteTo || 'queen', hasMoved: true }
         : { ...piece, hasMoved: true };
     this.boardState[to.row - 1][to.col - 1] = targetPiece;
     if (piece.type === 'king') {
@@ -252,7 +261,8 @@ class ChessEngine {
     const movingPiece = fromSquare.querySelector('.piece');
     if (move.type === 'promotion' || move.type === 'promotionCapture') {
       movingPiece?.remove();
-      toSquare.appendChild(this.createPieceElement(piece.color, 'queen'));
+      const promotionType = move.promoteTo || 'queen';
+      toSquare.appendChild(this.createPieceElement(piece.color, promotionType));
     } else if (movingPiece) {
       toSquare.appendChild(movingPiece);
     }
@@ -500,7 +510,7 @@ class ChessEngine {
     return last;
   }
 
-  applyMove(historyEntry) {
+  async applyMove(historyEntry) {
     if (!historyEntry) {
       return;
     }
@@ -511,7 +521,13 @@ class ChessEngine {
       col: to.col,
       type: historyEntry.type || 'move'
     };
-    this.movePiece(from, to, move);
+    await this.movePiece(from, to, move);
+  }
+
+  isPromotionMove(move) {
+    return (
+      move && (move.type === 'promotion' || move.type === 'promotionCapture')
+    );
   }
 }
 
