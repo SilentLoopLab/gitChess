@@ -11,10 +11,15 @@ class Buttons {
     this.whiteReadyButton = null;
     this.blackTimerDisplay = null;
     this.whiteTimerDisplay = null;
-    this.timerMessage = null;
+    this.blackSurrenderButton = null;
+    this.whiteSurrenderButton = null;
+    this.blackDrawButton = null;
+    this.whiteDrawButton = null;
+    this.pendingDrawOffer = null;
     this.sidebar = null;
     this.topPanel = null;
     this.bottomPanel = null;
+    this.boardElement = engine?.boardElement || null;
     this.historyContainer = null;
     this.historyList = null;
     this.confirmOverlay = null;
@@ -34,6 +39,9 @@ class Buttons {
     this.timerInterval = null;
     this.matchRunning = false;
     this.matchFinished = false;
+    this.boardLocked = true;
+    this.endModal = null;
+    this.boardFrozen = false;
   }
 
   // Ensures the component sets up only after the DOM is fully ready
@@ -53,14 +61,18 @@ class Buttons {
     this.setupHistoryPanel();
     this.bindButtons();
     this.bindReadyButtons();
+    this.bindExtraControls();
     this.attachEngineEvents();
+    this.applyBoardLockState();
     this.renderHistory();
   }
 
   // Allows wiring the engine reference after construction if needed
   setEngine(engine) {
     this.engine = engine;
+    this.boardElement = engine?.boardElement || null;
     this.attachEngineEvents();
+    this.applyBoardLockState();
   }
 
   // Locates key DOM nodes for buttons and sidebar display
@@ -113,6 +125,21 @@ class Buttons {
     );
   }
 
+  bindExtraControls() {
+    this.blackSurrenderButton?.addEventListener('click', () =>
+      this.handleSurrender('black')
+    );
+    this.whiteSurrenderButton?.addEventListener('click', () =>
+      this.handleSurrender('white')
+    );
+    this.blackDrawButton?.addEventListener('click', () =>
+      this.handleDrawClick('black')
+    );
+    this.whiteDrawButton?.addEventListener('click', () =>
+      this.handleDrawClick('white')
+    );
+  }
+
   // Subscribes to engine status events so move history stays in sync
   attachEngineEvents() {
     if (!this.engine || !this.engine.boardElement) {
@@ -131,8 +158,10 @@ class Buttons {
 
   // Processes the status event to capture newly made moves
   handleStatus(event) {
+    const detail = event?.detail;
     this.syncHistoryFromEngine();
-    this.handleTimerUpdate(event?.detail);
+    this.handleTimerUpdate(detail);
+    this.evaluateGameEnd(detail);
   }
 
   // Copies unseen history entries from the engine into the sidebar list
@@ -191,6 +220,9 @@ class Buttons {
 
   // Handles undo logic, maintaining history and stacks
   handleUndo() {
+    if (this.matchFinished) {
+      return;
+    }
     if (
       !this.engine ||
       typeof this.engine.undoLastMove !== 'function' ||
@@ -207,6 +239,9 @@ class Buttons {
 
   // Handles redo logic using the stored futureMoves stack
   async handleRedo() {
+    if (this.matchFinished) {
+      return;
+    }
     if (
       !this.engine ||
       typeof this.engine.applyMove !== 'function' ||
@@ -338,9 +373,21 @@ class Buttons {
       timer.textContent = '05:00';
       wrapper.appendChild(btn);
       wrapper.appendChild(timer);
+      const surrender = document.createElement('button');
+      surrender.type = 'button';
+      surrender.classList.add('ready-action', 'ready-action--black');
+      surrender.textContent = 'Black Resign';
+      const draw = document.createElement('button');
+      draw.type = 'button';
+      draw.classList.add('ready-action', 'ready-action--black');
+      draw.textContent = 'Offer Draw';
+      wrapper.appendChild(surrender);
+      wrapper.appendChild(draw);
       this.topPanel.appendChild(wrapper);
       this.blackReadyButton = btn;
       this.blackTimerDisplay = timer;
+      this.blackSurrenderButton = surrender;
+      this.blackDrawButton = draw;
     }
     if (this.bottomPanel) {
       const wrapper = document.createElement('div');
@@ -354,10 +401,24 @@ class Buttons {
       timer.textContent = '05:00';
       wrapper.appendChild(btn);
       wrapper.appendChild(timer);
+      const surrender = document.createElement('button');
+      surrender.type = 'button';
+      surrender.classList.add('ready-action', 'ready-action--white');
+      surrender.textContent = 'White Resign';
+      const draw = document.createElement('button');
+      draw.type = 'button';
+      draw.classList.add('ready-action', 'ready-action--white');
+      draw.textContent = 'Offer Draw';
+      wrapper.appendChild(surrender);
+      wrapper.appendChild(draw);
       this.bottomPanel.appendChild(wrapper);
       this.whiteReadyButton = btn;
       this.whiteTimerDisplay = timer;
+      this.whiteSurrenderButton = surrender;
+      this.whiteDrawButton = draw;
     }
+    this.updateSurrenderButtons();
+    this.updateDrawButtons();
   }
 
   handleReady(color) {
@@ -376,14 +437,217 @@ class Buttons {
     }
   }
 
+  handleSurrender(color) {
+    if (!this.matchRunning || this.matchFinished) {
+      return;
+    }
+    const winner = color === 'white' ? 'Black' : 'White';
+    this.finishGame({
+      type: 'resignation',
+      winner
+    });
+  }
+
+  handleDrawClick(color) {
+    if (!this.matchRunning || this.matchFinished) {
+      return;
+    }
+    if (!this.pendingDrawOffer) {
+      this.pendingDrawOffer = color;
+      this.updateDrawButtons();
+      return;
+    }
+    if (this.pendingDrawOffer === color) {
+      this.pendingDrawOffer = null;
+      this.updateDrawButtons();
+      return;
+    }
+    this.pendingDrawOffer = null;
+    this.updateDrawButtons();
+    this.finishGame({
+      type: 'agreement'
+    });
+  }
+
+  updateSurrenderButtons() {
+    const enabled = this.matchRunning && !this.matchFinished;
+    const setState = button => {
+      if (!button) {
+        return;
+      }
+      button.disabled = !enabled;
+    };
+    setState(this.blackSurrenderButton);
+    setState(this.whiteSurrenderButton);
+  }
+
+  updateDrawButtons() {
+    const active = this.matchRunning && !this.matchFinished;
+    const setState = (button, color) => {
+      if (!button) {
+        return;
+      }
+      if (!active) {
+        button.disabled = true;
+        button.textContent = 'Offer Draw';
+        return;
+      }
+      if (!this.pendingDrawOffer) {
+        button.disabled = false;
+        button.textContent = 'Offer Draw';
+        return;
+      }
+      if (this.pendingDrawOffer === color) {
+        button.disabled = false;
+        button.textContent = 'Cancel Offer';
+      } else {
+        button.disabled = false;
+        button.textContent = 'Accept Draw';
+      }
+    };
+    setState(this.blackDrawButton, 'black');
+    setState(this.whiteDrawButton, 'white');
+  }
+
+  clearPendingDrawOffer() {
+    if (this.pendingDrawOffer) {
+      this.pendingDrawOffer = null;
+      this.updateDrawButtons();
+    }
+  }
+
+  detectAutomaticDraw() {
+    if (!this.engine) {
+      return null;
+    }
+    if (this.isFiftyMoveDraw()) {
+      return { type: 'fiftyMove' };
+    }
+    if (this.isThreefoldRepetition()) {
+      return { type: 'threefold' };
+    }
+    if (this.isInsufficientMaterial()) {
+      return { type: 'insufficient' };
+    }
+    return null;
+  }
+
+  isFiftyMoveDraw() {
+    const history = this.engine?.history || [];
+    if (!history.length) {
+      return false;
+    }
+    let halfMoves = 0;
+    for (let i = history.length - 1; i >= 0; i -= 1) {
+      const entry = history[i];
+      if (!entry) {
+        break;
+      }
+      const isPawnMove = entry.piece?.type === 'pawn';
+      const isCapture = Boolean(entry.captured);
+      if (isPawnMove || isCapture) {
+        break;
+      }
+      halfMoves += 1;
+    }
+    return halfMoves >= 100;
+  }
+
+  isThreefoldRepetition() {
+    if (!this.engine || typeof this.engine.createSnapshot !== 'function') {
+      return false;
+    }
+    const counts = new Map();
+    const pushSnapshot = snapshot => {
+      if (!snapshot) {
+        return;
+      }
+      const key = this.snapshotKey(snapshot);
+      counts.set(key, (counts.get(key) || 0) + 1);
+    };
+    const history = this.engine.history || [];
+    history.forEach(entry => pushSnapshot(entry.snapshot));
+    pushSnapshot(this.engine.createSnapshot());
+    for (const value of counts.values()) {
+      if (value >= 3) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  snapshotKey(snapshot) {
+    if (!snapshot || !snapshot.boardState) {
+      return '';
+    }
+    const rows = snapshot.boardState
+      .map(row =>
+        row
+          .map(cell => (cell ? `${cell.color[0]}${cell.type}` : '--'))
+          .join('')
+      )
+      .join('|');
+    const castle = [
+      snapshot.castleRights?.white?.king ? '1' : '0',
+      snapshot.castleRights?.white?.queen ? '1' : '0',
+      snapshot.castleRights?.black?.king ? '1' : '0',
+      snapshot.castleRights?.black?.queen ? '1' : '0'
+    ].join('');
+    const enPassant = snapshot.enPassantTarget
+      ? `${snapshot.enPassantTarget.row}${snapshot.enPassantTarget.col}`
+      : '--';
+    return `${rows}-${snapshot.currentTurn}-${castle}-${enPassant}`;
+  }
+
+  isInsufficientMaterial() {
+    const board = this.engine?.boardState;
+    if (!board) {
+      return false;
+    }
+    const pieces = [];
+    for (let row = 1; row <= 8; row += 1) {
+      for (let col = 1; col <= 8; col += 1) {
+        const cell = board[row - 1][col - 1];
+        if (cell) {
+          pieces.push({ ...cell, row, col });
+        }
+      }
+    }
+    const nonKingPieces = pieces.filter(piece => piece.type !== 'king');
+    if (!nonKingPieces.length) {
+      return true;
+    }
+    if (nonKingPieces.length === 1) {
+      const type = nonKingPieces[0].type;
+      if (type === 'bishop' || type === 'knight') {
+        return true;
+      }
+    }
+    if (nonKingPieces.length === 2) {
+      const bothBishops = nonKingPieces.every(piece => piece.type === 'bishop');
+      if (bothBishops) {
+        const colorA = (nonKingPieces[0].row + nonKingPieces[0].col) % 2;
+        const colorB = (nonKingPieces[1].row + nonKingPieces[1].col) % 2;
+        if (colorA === colorB) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   startMatch() {
     this.remainingTime.black = 300000;
     this.remainingTime.white = 300000;
     this.matchRunning = true;
     this.matchFinished = false;
+    this.pendingDrawOffer = null;
+    this.boardLocked = false;
+    this.applyBoardLockState();
+    this.updateSurrenderButtons();
+    this.updateDrawButtons();
     this.updateTimerDisplay('black');
     this.updateTimerDisplay('white');
-    this.setTimerMessage('Game started. White to move.');
     this.startTimer('white');
   }
 
@@ -394,8 +658,9 @@ class Buttons {
     const nextColor = status.turn === 'black' ? 'black' : 'white';
     if (nextColor !== this.activeTimerColor) {
       this.startTimer(nextColor);
-      const capitalized = nextColor === 'white' ? 'White' : 'Black';
-      this.setTimerMessage(`${capitalized} are thinking.`);
+    }
+    if (this.pendingDrawOffer && this.pendingDrawOffer === nextColor) {
+      this.clearPendingDrawOffer();
     }
   }
 
@@ -444,18 +709,175 @@ class Buttons {
   }
 
   handleTimeLoss(color) {
-    this.stopTimer();
-    this.matchRunning = false;
-    this.matchFinished = true;
-    const loser = color === 'white' ? 'White' : 'Black';
     const winner = color === 'white' ? 'Black' : 'White';
-    this.setTimerMessage(`${loser} lost on time. ${winner} win.`);
+    this.finishGame({
+      type: 'timeout',
+      winner
+    });
   }
 
-  setTimerMessage(text) {
-    if (this.timerMessage) {
-      this.timerMessage.textContent = text;
+  evaluateGameEnd(status) {
+    if (!status || this.matchFinished || !this.matchRunning) {
+      return;
     }
+    if (status.checkmate) {
+      const loser = status.turn === 'white' ? 'White' : 'Black';
+      const winner = loser === 'White' ? 'Black' : 'White';
+      this.finishGame({
+        type: 'checkmate',
+        winner
+      });
+      return;
+    }
+    if (status.stalemate) {
+      this.finishGame({
+        type: 'stalemate'
+      });
+      return;
+    }
+    const automatic = this.detectAutomaticDraw();
+    if (automatic) {
+      this.finishGame(automatic);
+    }
+  }
+
+  finishGame(result) {
+    if (this.matchFinished) {
+      if (result && !this.endModal) {
+        this.showEndModal(result);
+      }
+      return;
+    }
+    this.matchFinished = true;
+    this.matchRunning = false;
+    this.stopTimer();
+    this.freezeBoard();
+    this.disableControlButtons();
+    this.boardLocked = true;
+    this.applyBoardLockState();
+    this.clearPendingDrawOffer();
+    this.updateDrawButtons();
+    this.updateSurrenderButtons();
+    if (result) {
+      this.showEndModal(result);
+    }
+  }
+
+  disableControlButtons() {
+    this.undoButton?.setAttribute('disabled', 'true');
+    this.redoButton?.setAttribute('disabled', 'true');
+    this.blackReadyButton?.setAttribute('disabled', 'true');
+    this.whiteReadyButton?.setAttribute('disabled', 'true');
+    this.blackDrawButton?.setAttribute('disabled', 'true');
+    this.whiteDrawButton?.setAttribute('disabled', 'true');
+    this.blackSurrenderButton?.setAttribute('disabled', 'true');
+    this.whiteSurrenderButton?.setAttribute('disabled', 'true');
+  }
+
+  freezeBoard() {
+    if (this.boardElement && !this.boardFrozen) {
+      this.boardElement.classList.add('board--frozen');
+      this.boardFrozen = true;
+    }
+  }
+
+  applyBoardLockState() {
+    if (!this.boardElement) {
+      return;
+    }
+    if (this.boardLocked) {
+      this.boardElement.classList.add('board--locked');
+    } else {
+      this.boardElement.classList.remove('board--locked');
+    }
+  }
+
+  showEndModal(result) {
+    this.closeEndModal();
+    const overlay = document.createElement('div');
+    overlay.classList.add('game-end-overlay');
+    const dialog = document.createElement('div');
+    dialog.classList.add('game-end-dialog');
+    const message = document.createElement('p');
+    message.classList.add('game-end-dialog__message');
+    message.textContent = this.getEndMessage(result);
+    const controls = document.createElement('div');
+    controls.classList.add('game-end-dialog__controls');
+    const restartBtn = document.createElement('button');
+    restartBtn.type = 'button';
+    restartBtn.classList.add('game-end-btn', 'game-end-btn--restart');
+    restartBtn.textContent = 'Restart Game';
+    restartBtn.addEventListener('click', () => this.restartGame());
+    const viewBtn = document.createElement('button');
+    viewBtn.type = 'button';
+    viewBtn.classList.add('game-end-btn', 'game-end-btn--view');
+    viewBtn.textContent = 'View Board';
+    viewBtn.addEventListener('click', () => this.closeEndModal());
+    controls.appendChild(restartBtn);
+    controls.appendChild(viewBtn);
+    dialog.appendChild(message);
+    dialog.appendChild(controls);
+    overlay.appendChild(dialog);
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay) {
+        event.stopPropagation();
+      }
+    });
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => {
+      overlay.classList.add('game-end-overlay--visible');
+    });
+    this.endModal = overlay;
+  }
+
+  getEndMessage(result) {
+    if (!result) {
+      return 'Game Over';
+    }
+    if (result.type === 'checkmate') {
+      return result.winner === 'White'
+        ? 'Game Over: White Wins'
+        : 'Game Over: Black Wins';
+    }
+    if (result.type === 'stalemate') {
+      return 'Draw: Stalemate';
+    }
+    if (result.type === 'timeout') {
+      return result.winner
+        ? `Time Out: ${result.winner} Wins`
+        : 'Time Out';
+    }
+    if (result.type === 'agreement') {
+      return 'Draw: Agreed';
+    }
+    if (result.type === 'threefold') {
+      return 'Draw: Threefold Repetition';
+    }
+    if (result.type === 'fiftyMove') {
+      return 'Draw: 50-Move Rule';
+    }
+    if (result.type === 'insufficient') {
+      return 'Draw: Insufficient Material';
+    }
+    if (result.type === 'resignation') {
+      return result.winner === 'White'
+        ? 'Game Over: White Wins (Resignation)'
+        : 'Game Over: Black Wins (Resignation)';
+    }
+    return 'Game Over';
+  }
+
+  closeEndModal() {
+    if (this.endModal) {
+      this.endModal.classList.remove('game-end-overlay--visible');
+      const modal = this.endModal;
+      this.endModal = null;
+      setTimeout(() => modal.remove(), 200);
+    }
+  }
+
+  restartGame() {
+    window.location.reload();
   }
 }
 
