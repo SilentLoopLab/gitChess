@@ -100,27 +100,6 @@ So should be the implementation.
 
 ---
 
-# <span style="color:#6f1515;">📂 Folder Atlas</span>
-
-gitChess/
-│
-├── engine/ # Kingdom Mind — rules, states, validations
-├── moves/ # Movement Scrolls — all move logic helpers
-├── images/ # Visual Arsenal — piece sprites
-├── highlight/ # Glow FX — hover, select, available moves
-├── favicon/ # Royal Sigils — website icons
-├── chess.img/ # Misc visuals (UI art)
-│
-├── board.js # Summons the 8x8 battlefield
-├── pieces.js # Piece definitions (pawn → king)
-├── promotion.js # Pawn ascension ceremony
-├── buttons.js # Ready / Undo / Redo / Restart logic
-├── src.js # Global initialization script
-├── styles.css # Black-red theme styling
-└── index.html # Entry gate of the kingdom
-
----
-
 # <span style="color:#6f1515;">🚀 Running the Game</span>
 
 Open here:
