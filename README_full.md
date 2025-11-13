@@ -1,23 +1,5 @@
 <!-- BORN TO BE A KING – ULTRA README -->
 
-<style>
-@keyframes fadeGlow {
-  0% { opacity: 0.4; text-shadow: 0 0 10px #6f1515; }
-  50% { opacity: 1; text-shadow: 0 0 25px #6f1515; }
-  100% { opacity: 0.4; text-shadow: 0 0 10px #6f1515; }
-}
-@keyframes slowPulse {
-  0% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.06); opacity: 1; }
-  100% { transform: scale(1); opacity: 0.8; }
-}
-@keyframes sideGlow {
-  0% { box-shadow: 0 0 5px #6f1515; }
-  50% { box-shadow: 0 0 25px #6f1515; }
-  100% { box-shadow: 0 0 5px #6f1515; }
-}
-</style>
-
 <p align="center">
   <img src="BornToBeAKing.png" width="600" style="animation:slowPulse 6s infinite;" />
 </p>
@@ -51,17 +33,6 @@ Just raw logic, raw DOM, raw programming skill.
 
 Play instantly:
 ➡️ **https://silentlooplab.github.io/gitChess/**
-
----
-
-# <span style="color:#6f1515;">🎥 Animated Showcase</span>
-
-<p align="center" style="animation:sideGlow 4s infinite;">
-  <img src="https://i.imgur.com/eAI5umX.gif" width="500"/>
-</p>
-
-_Example animation (not from your game).
-You can later replace with your own gameplay GIFs._
 
 ---
 
@@ -147,9 +118,6 @@ gitChess/
 ├── src.js # Global initialization script
 ├── styles.css # Black-red theme styling
 └── index.html # Entry gate of the kingdom
-
-yaml
-Копировать код
 
 ---
 
@@ -264,10 +232,6 @@ Your foundation is strong.
 **SILENTLOOPLAB**
 Creator • Designer • Architect
 Github: https://github.com/SILENTLOOPLAB
-
-<p align="center">
-  <img src="https://i.imgur.com/CEY1V4I.gif" width="300" />
-</p>
 
 <h3 align="center" style="color:#6f1515;">
   All pawns deserve a throne.
